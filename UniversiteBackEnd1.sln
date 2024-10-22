@@ -8,6 +8,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DataProviders", "DataProvid
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EntryPoints", "EntryPoints", "{F37D584D-9BE0-49CB-A223-BA1B012C7F40}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UniversiteDomain", "UniversiteDomain\UniversiteDomain.csproj", "{D6CEEF9C-F070-4F75-A8F7-FE6E6356AD89}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,12 @@ Global
 		{439C2D6C-5FC3-4EC0-8E42-050877317FF1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{439C2D6C-5FC3-4EC0-8E42-050877317FF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{439C2D6C-5FC3-4EC0-8E42-050877317FF1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D6CEEF9C-F070-4F75-A8F7-FE6E6356AD89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D6CEEF9C-F070-4F75-A8F7-FE6E6356AD89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D6CEEF9C-F070-4F75-A8F7-FE6E6356AD89}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D6CEEF9C-F070-4F75-A8F7-FE6E6356AD89}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{D6CEEF9C-F070-4F75-A8F7-FE6E6356AD89} = {6C1D161E-AB62-40AE-BFD8-93B66E0D8A3D}
 	EndGlobalSection
 EndGlobal
