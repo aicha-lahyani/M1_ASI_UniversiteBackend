@@ -3,7 +3,7 @@ using UniversiteDomain.Entities;
 
 namespace UniversiteDomain.DataAdapters;
 
-public interface IEtudiantRepository
+public interface IEtudiantRepository : IRepository<Etudiant>
 {
     Task<Etudiant> CreateAsync(Etudiant entity);
     Task UpdateAsync(Etudiant entity);
