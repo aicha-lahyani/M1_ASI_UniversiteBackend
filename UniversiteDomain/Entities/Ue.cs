@@ -2,6 +2,9 @@
 
 public class Ue
 {
+    List<Note> notes ;
+    List<Etudiant> etudiants ;
+    List<Ue> ues ;
     public long Id { get; set; }
     public string NumeroUe { get; set; } = String.Empty;
     public string Intitule { get; set; } = String.Empty;
