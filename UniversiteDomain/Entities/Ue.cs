@@ -2,7 +2,7 @@
 
 public class Ue
 {
-    List<Note> notes ;
+    public List<Note> notes { get; set; } = new();
     List<Etudiant> etudiants ;
     List<Ue> ues ;
     public long Id { get; set; }
