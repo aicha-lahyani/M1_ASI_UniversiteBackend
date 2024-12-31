@@ -70,7 +70,7 @@ public class UniversiteDbContext : DbContext
         // Propriétés de la table Note
         // Clé primaire composite
         modelBuilder.Entity<Note>()
-            .HasKey(n => new { n.IdEt, n.IdUe });
+            .HasKey(n => new { n.EtudiantId, n.UeId });
         // ManyToOne vers Etudiant
         modelBuilder.Entity<Note>()
             .HasOne(n => n.Etudiant)

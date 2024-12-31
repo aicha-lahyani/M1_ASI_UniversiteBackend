@@ -27,8 +27,8 @@ public class NoteRepository(UniversiteDbContext context) : Repository<Note>(cont
             // Crée une nouvelle note
             note = new Note
             {
-                IdEt= idEtudiant,
-                IdUe = idUe,
+                EtudiantId= idEtudiant,
+                UeId = idUe,
                 Valeur = valeurNote
             };
             Context.Notes.Add(note);
@@ -43,7 +43,7 @@ public class NoteRepository(UniversiteDbContext context) : Repository<Note>(cont
         ArgumentNullException.ThrowIfNull(Context.Notes);
 
         return await Context.Notes
-            .Where(n => n.IdEt == idEtudiant)
+            .Where(n => n.EtudiantId == idEtudiant)
             .ToListAsync();
     }
 }
