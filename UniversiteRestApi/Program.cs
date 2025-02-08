@@ -1,14 +1,32 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using UniversiteDomain.DataAdapters.DataAdaptersFactory;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
+using UniversiteDomain.DataAdapters;
 using UniversiteDomain.JeuxDeDonnees;
+using UniversiteDomain.UseCases.EtudiantUseCases.Create;
+using UniversiteDomain.UseCases.EtudiantUseCases.Delete;
+using UniversiteDomain.UseCases.EtudiantUseCases.Get;
 using UniversiteEFDataProvider.Data;
+using UniversiteEFDataProvider.Entities;
 using UniversiteEFDataProvider.RepositoryFactories;
+using UniversiteEFDataProvider.Repositories;
+using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Text;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.AspNetCore.Mvc;
+using Université_Domain.UseCases.EtudiantUseCases.Update;
+using UniversiteDomain.DataAdapters.DataAdaptersFactory;
+using UniversiteDomain.UseCases.ParcoursUseCases.Create;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Ajout des services essentiels
 builder.Services.AddControllers();
-// Mis en place d'un annuaire des services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddLogging(options =>
@@ -20,54 +38,149 @@ builder.Services.AddLogging(options =>
 // Configuration de la connexion à MySql
 string connectionString = builder.Configuration.GetConnectionString("MySqlConnection") 
     ?? throw new InvalidOperationException("Connection string 'MySqlConnection' not found.");
-// Création du contexte de la base de données en utilisant Pomelo.EntityFrameworkCore.MySql
-builder.Services.AddDbContext<UniversiteDbContext>(options =>
-    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 31))) // Remplacez par votre version MySQL
-);
-// La factory est rajoutée dans les services de l'application, toujours prête à être utilisée par injection de dépendances
-builder.Services.AddScoped<IRepositoryFactory, RepositoryFactory>();
 
-// Création de tous les services qui sont stockés dans app
-// app contient tous les objets de notre application
+builder.Services.AddDbContext<UniversiteDbContext>(options =>options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 31))));
+
+
+// Enregistrement des services de la BD et des Repositories
+builder.Services.AddScoped<IRepositoryFactory, RepositoryFactory>();
+builder.Services.AddScoped<IEtudiantRepository, EtudiantRepository>();
+builder.Services.AddScoped<IUeRepository, UeRepository>();
+builder.Services.AddScoped<IParcoursRepository, ParcoursRepository>();
+
+builder.Services.AddScoped<CreateEtudiantUseCase>();
+builder.Services.AddScoped<DeleteEtudiantUseCase>();
+builder.Services.AddScoped<UpdateEtudiantUseCase>();
+builder.Services.AddScoped<GetEtudiantCompletUseCase>();
+// Enregistrement des UseCases pour Parcours
+builder.Services.AddScoped<CreateParcoursUseCase>();  // Ajout de cette ligne
+
+// Enregistrement des UseCases pour UE
+
+
+// Sécurisation : Configuration d’Identity
+builder.Services.AddIdentity<UniversiteUser, UniversiteRole>()
+    .AddEntityFrameworkStores<UniversiteDbContext>()
+    .AddDefaultTokenProviders();
+
+// Configuration de l'authentification JWT
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("VotreCléSecrèteTrèsLongueEtSûre")),
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization();
+
+// Ajout des services pour UserManager, RoleManager, et IEmailSender
+builder.Services.AddScoped<UserManager<UniversiteUser>>();
+builder.Services.AddScoped<RoleManager<UniversiteRole>>();
+builder.Services.AddSingleton<IEmailSender<UniversiteUser>, IdentityNoOpEmailSender>();
+
 var app = builder.Build();
 
-// Configuration du serveur Web
-app.UseHttpsRedirection();
-app.MapControllers();
-
-// Configuration de Swagger.
-// Commentez les deux lignes ci-dessous pour désactiver Swagger (en production par exemple)
+// Configuration du pipeline de requêtes
+app.UseRouting();
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
 
-// Initialisation de la base de données
-// À commenter si vous ne voulez pas vider la base à chaque Run!
-using (var scope = app.Services.CreateScope())
+// Ajout des routes d'identité personnalisées
+// Ajout des routes d'identité personnalisées
+app.MapPost("/custom-login", async ([FromBody] LoginDto loginDto, UserManager<UniversiteUser> userManager, RoleManager<UniversiteRole> roleManager) =>
 {
-    // On récupère le logger pour afficher des messages. On l'a mis dans les services de l'application
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<UniversiteDbContext>>();
-    // On récupère le contexte de la base de données qui est stocké dans les services
-    var context = scope.ServiceProvider.GetRequiredService<UniversiteDbContext>();
-    logger.LogInformation("Initialisation de la base de données");
-    // Suppression de la BD
-    logger.LogInformation("Suppression de la BD si elle existe");
-    await context.Database.EnsureDeletedAsync();
-    // Recréation des tables vides
-    logger.LogInformation("Création de la BD et des tables à partir des entities");
-    await context.Database.EnsureCreatedAsync();
+    var user = await userManager.FindByEmailAsync(loginDto.Email);
+    if (user != null && await userManager.CheckPasswordAsync(user, loginDto.Password))
+    {
+        // Récupérer les rôles de l'utilisateur
+        var userRoles = await userManager.GetRolesAsync(user);
+        var authClaims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, user.UserName),
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        // Ajouter chaque rôle trouvé aux claims
+        foreach (var role in userRoles)
+        {
+            authClaims.Add(new Claim(ClaimTypes.Role, role));
+        }
+
+        var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("VotreCléSecrèteTrèsLongueEtSûre"));
+
+        var token = new JwtSecurityToken(
+            expires: DateTime.Now.AddHours(3),
+            claims: authClaims,
+            signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
+        );
+
+        return Results.Ok(new
+        {
+            token = new JwtSecurityTokenHandler().WriteToken(token),
+            expiration = token.ValidTo
+        });
+    }
+    return Results.Unauthorized();
+});
+
+
+// Ajout des routes d'identité prédéfinies
+app.MapIdentityApi<UniversiteUser>();
+
+// Initialisation de la base de données (uniquement en développement)
+if (app.Environment.IsDevelopment())
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<UniversiteDbContext>>();
+        var context = scope.ServiceProvider.GetRequiredService<UniversiteDbContext>();
+
+        logger.LogInformation("Initialisation de la base de données");
+        await context.Database.EnsureDeletedAsync();
+        await context.Database.EnsureCreatedAsync();
+    }
 }
 
-// Initisation de la base de données
-ILogger logger1 = app.Services.GetRequiredService<ILogger<BdBuilder>>();
-logger1.LogInformation("Chargement des données de test");
-using(var scope = app.Services.CreateScope())
+// Initialisation des données de test
+using (var scope = app.Services.CreateScope())
 {
-    UniversiteDbContext context = scope.ServiceProvider.GetRequiredService<UniversiteDbContext>();
-    IRepositoryFactory repositoryFactory = scope.ServiceProvider.GetRequiredService<IRepositoryFactory>();   
-    // C'est ici que vous changez le jeu de données pour démarrer sur une base vide par exemple
-    BdBuilder seedBD = new BasicBdBuilder(repositoryFactory);
+    var context = scope.ServiceProvider.GetRequiredService<UniversiteDbContext>();
+    var repositoryFactory = scope.ServiceProvider.GetRequiredService<IRepositoryFactory>();
+
+    var seedBD = new BasicBdBuilder(repositoryFactory);
     await seedBD.BuildUniversiteBdAsync();
 }
 
-// Exécution de l'application
+// Démarrage de l'application
 app.Run();
+
+// Implémentation d'un email sender factice pour éviter les erreurs liées à IEmailSender
+public class IdentityNoOpEmailSender : IEmailSender<UniversiteUser>
+{
+    public Task SendConfirmationLinkAsync(UniversiteUser user, string email, string confirmationLink) => Task.CompletedTask;
+    public Task SendPasswordResetLinkAsync(UniversiteUser user, string email, string resetLink) => Task.CompletedTask;
+    public Task SendPasswordResetCodeAsync(UniversiteUser user, string email, string resetCode) => Task.CompletedTask;
+}
+
+// DTO pour la connexion
+public class LoginDto
+{
+    public string Email { get; set; }
+    public string Password { get; set; }
+}
