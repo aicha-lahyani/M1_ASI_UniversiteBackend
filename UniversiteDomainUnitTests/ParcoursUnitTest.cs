@@ -1,11 +1,11 @@
 ﻿using Moq;
 using UniversiteDomain.DataAdapters;
+using UniversiteDomain.DataAdapters;
 using UniversiteDomain.DataAdapters.DataAdaptersFactory;
 using UniversiteDomain.Entities;
-using UniversiteDomain.UseCases.EtudiantUseCases;
-using UniversiteDomain.UseCases.ParcoursUseCases;
-using UniversiteDomain.UseCases.ParcoursUseCases.Create;
 using UniversiteDomain.UseCases.ParcoursUseCases.EtudiantDansParcours;
+using UniversiteDomain.UseCases.ParcoursUseCases.UeDansParcours;
+
 
 namespace UniversiteDomainUnitTests;
 
@@ -32,7 +32,9 @@ public class ParcoursUnitTest
         // Il faut ensuite aller dans le use case pour simuler les appels des fonctions vers la datasource
         // Nous devons simuler FindByCondition et Create
         // On dit à ce mock que le parcours n'existe pas déjà
-        mockParcours.Setup(repo=>repo.FindByConditionAsync(p=>p.Id.Equals(idParcours))).ReturnsAsync((List<Parcours>)null);
+        mockParcours
+            .Setup(repo=>repo.FindByConditionAsync(p=>p.Id.Equals(idParcours)))
+            .ReturnsAsync((List<Parcours>)null);
         // On lui dit que l'ajout d'un étudiant renvoie un étudiant avec l'Id 1
         Parcours parcoursFinal =new Parcours{Id=idParcours,NomParcours= nomParcours, AnneeFormation = anneFormation};
         mockParcours.Setup(repo=>repo.CreateAsync(parcoursAvant)).ReturnsAsync(parcoursFinal);

@@ -21,45 +21,16 @@ namespace UniversiteRestApi.Controllers
     [Authorize] // Sécurisation globale du contrôleur
     [Route("api/[controller]")]
     [ApiController]
-    public class EtudiantApiController : ControllerBase
+    public class EtudiantController : ControllerBase
     {
         private readonly IRepositoryFactory _repositoryFactory;
         private readonly CreateEtudiantUseCase _createEtudiantUseCase;
 
-        public EtudiantApiController(IRepositoryFactory repositoryFactory, CreateEtudiantUseCase createEtudiantUseCase)
+        public EtudiantController(IRepositoryFactory repositoryFactory, CreateEtudiantUseCase createEtudiantUseCase)
         {
             _repositoryFactory = repositoryFactory;
             _createEtudiantUseCase = createEtudiantUseCase;
         }
-
-        /// <summary>
-        /// Vérifie l'authentification et l'autorisation de l'utilisateur
-        /// </summary>
-        /*private void CheckSecu(out string role, out string email, out IUniversiteUser user)
-        {
-            role = "";
-            ClaimsPrincipal claims = HttpContext.User;
-
-            if (claims.Identity?.IsAuthenticated != true) throw new UnauthorizedAccessException();
-            if (claims.FindFirst(ClaimTypes.Email) == null) throw new UnauthorizedAccessException();
-            
-            email = claims.FindFirst(ClaimTypes.Email).Value;
-            if (email == null) throw new UnauthorizedAccessException();
-            
-            user = new FindUniversiteUserByEmailUseCase(_repositoryFactory).ExecuteAsync(email).Result;
-            if (user == null) throw new UnauthorizedAccessException();
-            
-            if (claims.FindFirst(ClaimTypes.Role) == null) throw new UnauthorizedAccessException();
-            
-            var ident = claims.Identities.FirstOrDefault();
-            if (ident == null) throw new UnauthorizedAccessException();
-            
-            role = ident.FindFirst(ClaimTypes.Role).Value;
-            if (role == null) throw new UnauthorizedAccessException();
-            
-            bool isInRole = new IsInRoleUseCase(_repositoryFactory).ExecuteAsync(email, role).Result; 
-            if (!isInRole) throw new UnauthorizedAccessException();
-        }*/
         private void CheckSecu(out string role, out string email, out IUniversiteUser user)
         {
             role = "";
@@ -115,10 +86,6 @@ namespace UniversiteRestApi.Controllers
             var etudiants = await _repositoryFactory.EtudiantRepository().GetAllAsync();
             return Ok(EtudiantDto.ToDtos(etudiants));
         }
-
-        /// <summary>
-        /// Récupère un étudiant par son ID
-        /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<EtudiantDto>> GetUnEtudiant(long id)
         {
@@ -129,11 +96,6 @@ namespace UniversiteRestApi.Controllers
             }
             return Ok(new EtudiantDto().ToDto(etudiant));
         }
-
-        /// <summary>
-        /// Crée un nouvel étudiant (réservé aux Responsables et Scolarité)
-        /// </summary>
-        
         [HttpPost]
         public async Task<ActionResult<EtudiantDto>> PostAsync([FromBody] EtudiantDto etudiantDto)
         {
@@ -180,10 +142,6 @@ namespace UniversiteRestApi.Controllers
             EtudiantDto dto = new EtudiantDto().ToDto(etud);
             return CreatedAtAction(nameof(GetUnEtudiant), new { id = dto.Id }, dto);
         }
-
-        /// <summary>
-        /// Met à jour un étudiant
-        /// </summary>
         [HttpPut("{id}")]
         public async Task<IActionResult> PutAsync(long id, [FromBody] EtudiantDto etudiantDto)
         {
@@ -213,10 +171,6 @@ namespace UniversiteRestApi.Controllers
 
             return NoContent();
         }
-
-        /// <summary>
-        /// Supprime un étudiant
-        /// </summary>
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAsync(long id)
         {
@@ -241,10 +195,6 @@ namespace UniversiteRestApi.Controllers
 
             return NoContent();
         }
-
-        /// <summary>
-        /// Récupère un étudiant avec son parcours et ses notes
-        /// </summary>
         [HttpGet("complet/{id}")]
         public async Task<ActionResult<EtudiantCompletDto>> GetUnEtudiantCompletAsync(long id)
         {

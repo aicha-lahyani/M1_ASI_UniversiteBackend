@@ -1,25 +1,27 @@
-﻿using UniversiteDomain.DataAdapters;
+﻿using Microsoft.EntityFrameworkCore;
 using UniversiteDomain.Entities;
+using UniversiteDomain.DataAdapters;
 using UniversiteEFDataProvider.Data;
 
 namespace UniversiteEFDataProvider.Repositories;
 
 public class ParcoursRepository(UniversiteDbContext context) : Repository<Parcours>(context), IParcoursRepository
 {
-     public async Task<Parcours> AddEtudiantAsync(Parcours parcours, Etudiant etudiant)
+    public async Task<Parcours> AddEtudiantAsync(Parcours parcours, Etudiant etudiant)
     {
-        ArgumentNullException.ThrowIfNull(parcours);
-        ArgumentNullException.ThrowIfNull(etudiant);
+        if (parcours == null) throw new ArgumentNullException(nameof(parcours));
+        if (etudiant == null) throw new ArgumentNullException(nameof(etudiant));
 
-        ArgumentNullException.ThrowIfNull(Context.Parcours);
-        ArgumentNullException.ThrowIfNull(Context.Etudiants);
+        var existingParcours = await Context.Parcours
+            .Include(p => p.Inscrits)
+            .FirstOrDefaultAsync(p => p.Id == parcours.Id);
 
-        // Vérifie que le parcours est chargé
-        var existingParcours = await Context.Parcours.FindAsync(parcours.Id);
         if (existingParcours == null)
-            throw new ArgumentException("Le parcours spécifié n'existe pas.");
+            throw new KeyNotFoundException("Parcours non trouvé.");
 
-        // Ajoute l'étudiant au parcours
+        if (existingParcours.Inscrits == null)
+            existingParcours.Inscrits = new List<Etudiant>();
+
         existingParcours.Inscrits.Add(etudiant);
         await Context.SaveChangesAsync();
         return existingParcours;
@@ -27,78 +29,88 @@ public class ParcoursRepository(UniversiteDbContext context) : Repository<Parcou
 
     public async Task<Parcours> AddEtudiantAsync(long idParcours, long idEtudiant)
     {
-        ArgumentNullException.ThrowIfNull(Context.Parcours);
-        ArgumentNullException.ThrowIfNull(Context.Etudiants);
-
         var parcours = await Context.Parcours.FindAsync(idParcours);
-        if (parcours == null)
-            throw new ArgumentException("Le parcours spécifié n'existe pas.");
-
         var etudiant = await Context.Etudiants.FindAsync(idEtudiant);
-        if (etudiant == null)
-            throw new ArgumentException("L'étudiant spécifié n'existe pas.");
 
-        parcours.Inscrits.Add(etudiant);
-        await Context.SaveChangesAsync();
-        return parcours;
+        if (parcours == null)
+            throw new KeyNotFoundException($"Parcours avec ID {idParcours} non trouvé.");
+        if (etudiant == null)
+            throw new KeyNotFoundException($"Étudiant avec ID {idEtudiant} non trouvé.");
+
+        return await AddEtudiantAsync(parcours, etudiant);
     }
 
     public async Task<Parcours> AddEtudiantAsync(Parcours? parcours, List<Etudiant> etudiants)
     {
-        ArgumentNullException.ThrowIfNull(parcours);
-        ArgumentNullException.ThrowIfNull(etudiants);
+        if (parcours == null) throw new ArgumentNullException(nameof(parcours));
+        if (etudiants == null || etudiants.Count == 0) throw new ArgumentNullException(nameof(etudiants));
 
-        ArgumentNullException.ThrowIfNull(Context.Parcours);
-        ArgumentNullException.ThrowIfNull(Context.Etudiants);
+        var existingParcours = await Context.Parcours
+            .Include(p => p.Inscrits)
+            .FirstOrDefaultAsync(p => p.Id == parcours.Id);
 
-        var existingParcours = await Context.Parcours.FindAsync(parcours.Id);
         if (existingParcours == null)
-            throw new ArgumentException("Le parcours spécifié n'existe pas.");
+            throw new KeyNotFoundException("Parcours non trouvé.");
 
-        foreach (var etudiant in etudiants)
-        {
-            existingParcours.Inscrits.Add(etudiant);
-        }
+        if (existingParcours.Inscrits == null)
+            existingParcours.Inscrits = new List<Etudiant>();
 
+        existingParcours.Inscrits.AddRange(etudiants);
         await Context.SaveChangesAsync();
         return existingParcours;
     }
 
     public async Task<Parcours> AddEtudiantAsync(long idParcours, long[] idEtudiants)
     {
-        ArgumentNullException.ThrowIfNull(Context.Parcours);
-        ArgumentNullException.ThrowIfNull(Context.Etudiants);
-
         var parcours = await Context.Parcours.FindAsync(idParcours);
         if (parcours == null)
-            throw new ArgumentException("Le parcours spécifié n'existe pas.");
+            throw new KeyNotFoundException($"Parcours avec ID {idParcours} non trouvé.");
 
-        foreach (var idEtudiant in idEtudiants)
+        var etudiants = await Context.Etudiants
+            .Where(e => idEtudiants.Contains(e.Id))
+            .ToListAsync();
+
+        return await AddEtudiantAsync(parcours, etudiants);
+    }
+    public async Task<Parcours> AddUeAsync(long idParcours, long idUe)
+    {
+        var parcours = await Context.Parcours.Include(p => p.UesEnseignees).FirstOrDefaultAsync(p => p.Id == idParcours);
+        var ue = await Context.Ues.FindAsync(idUe);
+
+        if (parcours == null)
+            throw new KeyNotFoundException($"Parcours avec ID {idParcours} non trouvé.");
+        if (ue == null)
+            throw new KeyNotFoundException($"UE avec ID {idUe} non trouvée.");
+
+        if (parcours.UesEnseignees == null)
+            parcours.UesEnseignees = new List<Ue>();
+
+        if (!parcours.UesEnseignees.Contains(ue))
         {
-            var etudiant = await Context.Etudiants.FindAsync(idEtudiant);
-            if (etudiant != null)
-            {
-                parcours.Inscrits.Add(etudiant);
-            }
+            parcours.UesEnseignees.Add(ue);
+            await Context.SaveChangesAsync();
         }
 
-        await Context.SaveChangesAsync();
         return parcours;
     }
 
-    public async Task<Parcours> AddUeAsync(long idParcours, long[] idUe)
+    public async Task<Parcours> AddUeAsync(long idParcours, long[] idUes)
     {
-        ArgumentNullException.ThrowIfNull(Context.Parcours);
-        ArgumentNullException.ThrowIfNull(Context.Ues);
-
-        var parcours = await Context.Parcours.FindAsync(idParcours);
+        var parcours = await Context.Parcours.Include(p => p.UesEnseignees).FirstOrDefaultAsync(p => p.Id == idParcours);
         if (parcours == null)
-            throw new ArgumentException("Le parcours spécifié n'existe pas.");
+            throw new KeyNotFoundException($"Parcours avec ID {idParcours} non trouvé.");
 
-        foreach (var id in idUe)
+        var ues = await Context.Ues.Where(ue => idUes.Contains(ue.Id)).ToListAsync();
+    
+        if (ues.Count == 0)
+            throw new KeyNotFoundException("Aucune UE valide trouvée.");
+
+        if (parcours.UesEnseignees == null)
+            parcours.UesEnseignees = new List<Ue>();
+
+        foreach (var ue in ues)
         {
-            var ue = await Context.Ues.FindAsync(id);
-            if (ue != null && !parcours.UesEnseignees.Contains(ue))
+            if (!parcours.UesEnseignees.Contains(ue))
             {
                 parcours.UesEnseignees.Add(ue);
             }
@@ -107,27 +119,14 @@ public class ParcoursRepository(UniversiteDbContext context) : Repository<Parcou
         await Context.SaveChangesAsync();
         return parcours;
     }
-
-    public async Task<Parcours> AddUeAsync(long idParcours, long idUe)
+    public async Task<List<Parcours>> GetAllAsync()
     {
-        ArgumentNullException.ThrowIfNull(Context.Parcours);
-        ArgumentNullException.ThrowIfNull(Context.Ues);
-
-        var parcours = await Context.Parcours.FindAsync(idParcours);
-        if (parcours == null)
-            throw new ArgumentException("Le parcours spécifié n'existe pas.");
-
-        var ue = await Context.Ues.FindAsync(idUe);
-        if (ue == null)
-            throw new ArgumentException("L'UE spécifiée n'existe pas.");
-
-        if (!parcours.UesEnseignees.Contains(ue))
-        {
-            parcours.UesEnseignees.Add(ue);
-        }
-
-        await Context.SaveChangesAsync();
-        return parcours;
+        return await Context.Parcours.ToListAsync();
     }
-   
+
+    public async Task<Parcours> GetByIdAsync(long id)
+    {
+        return await Context.Parcours.FindAsync(id);
+    }
+
 }

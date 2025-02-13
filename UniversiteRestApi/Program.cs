@@ -1,8 +1,6 @@
-using Microsoft.AspNetCore.Builder;
+
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using UniversiteDomain.DataAdapters;
 using UniversiteDomain.JeuxDeDonnees;
@@ -13,7 +11,6 @@ using UniversiteEFDataProvider.Data;
 using UniversiteEFDataProvider.Entities;
 using UniversiteEFDataProvider.RepositoryFactories;
 using UniversiteEFDataProvider.Repositories;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
 using System.Security.Claims;
@@ -21,11 +18,15 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Mvc;
 using Université_Domain.UseCases.EtudiantUseCases.Update;
 using UniversiteDomain.DataAdapters.DataAdaptersFactory;
-using UniversiteDomain.UseCases.ParcoursUseCases.Create;
+using UniversiteDomain.UseCases.ParcoursUseCases.Delete;
+
+using UniversiteDomain.UseCases.ParcoursUseCases.Update;
+using UniversiteDomain.UseCases.UeUseCases.Create;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Ajout des services essentiels
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -40,9 +41,6 @@ string connectionString = builder.Configuration.GetConnectionString("MySqlConnec
     ?? throw new InvalidOperationException("Connection string 'MySqlConnection' not found.");
 
 builder.Services.AddDbContext<UniversiteDbContext>(options =>options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 31))));
-
-
-// Enregistrement des services de la BD et des Repositories
 builder.Services.AddScoped<IRepositoryFactory, RepositoryFactory>();
 builder.Services.AddScoped<IEtudiantRepository, EtudiantRepository>();
 builder.Services.AddScoped<IUeRepository, UeRepository>();
@@ -52,18 +50,15 @@ builder.Services.AddScoped<CreateEtudiantUseCase>();
 builder.Services.AddScoped<DeleteEtudiantUseCase>();
 builder.Services.AddScoped<UpdateEtudiantUseCase>();
 builder.Services.AddScoped<GetEtudiantCompletUseCase>();
-// Enregistrement des UseCases pour Parcours
-builder.Services.AddScoped<CreateParcoursUseCase>();  // Ajout de cette ligne
-
-// Enregistrement des UseCases pour UE
-
-
-// Sécurisation : Configuration d’Identity
+builder.Services.AddScoped<CreateParcoursUseCase>(); 
+builder.Services.AddScoped<DeleteParcoursUseCase>();
+builder.Services.AddScoped<UpdateParcoursUseCase>();
+builder.Services.AddScoped<CreateUeUseCase>();
 builder.Services.AddIdentity<UniversiteUser, UniversiteRole>()
     .AddEntityFrameworkStores<UniversiteDbContext>()
     .AddDefaultTokenProviders();
 
-// Configuration de l'authentification JWT
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -85,14 +80,13 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// Ajout des services pour UserManager, RoleManager, et IEmailSender
 builder.Services.AddScoped<UserManager<UniversiteUser>>();
 builder.Services.AddScoped<RoleManager<UniversiteRole>>();
 builder.Services.AddSingleton<IEmailSender<UniversiteUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
 
-// Configuration du pipeline de requêtes
+
 app.UseRouting();
 app.UseSwagger();
 app.UseSwaggerUI();
@@ -100,14 +94,13 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Ajout des routes d'identité personnalisées
-// Ajout des routes d'identité personnalisées
+
 app.MapPost("/custom-login", async ([FromBody] LoginDto loginDto, UserManager<UniversiteUser> userManager, RoleManager<UniversiteRole> roleManager) =>
 {
     var user = await userManager.FindByEmailAsync(loginDto.Email);
     if (user != null && await userManager.CheckPasswordAsync(user, loginDto.Password))
     {
-        // Récupérer les rôles de l'utilisateur
+        
         var userRoles = await userManager.GetRolesAsync(user);
         var authClaims = new List<Claim>
         {
@@ -116,7 +109,7 @@ app.MapPost("/custom-login", async ([FromBody] LoginDto loginDto, UserManager<Un
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        // Ajouter chaque rôle trouvé aux claims
+        
         foreach (var role in userRoles)
         {
             authClaims.Add(new Claim(ClaimTypes.Role, role));
@@ -140,10 +133,10 @@ app.MapPost("/custom-login", async ([FromBody] LoginDto loginDto, UserManager<Un
 });
 
 
-// Ajout des routes d'identité prédéfinies
+
 app.MapIdentityApi<UniversiteUser>();
 
-// Initialisation de la base de données (uniquement en développement)
+
 if (app.Environment.IsDevelopment())
 {
     using (var scope = app.Services.CreateScope())
@@ -157,7 +150,6 @@ if (app.Environment.IsDevelopment())
     }
 }
 
-// Initialisation des données de test
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<UniversiteDbContext>();
@@ -167,10 +159,10 @@ using (var scope = app.Services.CreateScope())
     await seedBD.BuildUniversiteBdAsync();
 }
 
-// Démarrage de l'application
+
 app.Run();
 
-// Implémentation d'un email sender factice pour éviter les erreurs liées à IEmailSender
+
 public class IdentityNoOpEmailSender : IEmailSender<UniversiteUser>
 {
     public Task SendConfirmationLinkAsync(UniversiteUser user, string email, string confirmationLink) => Task.CompletedTask;
