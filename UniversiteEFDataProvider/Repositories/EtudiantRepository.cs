@@ -32,8 +32,11 @@ public class EtudiantRepository(UniversiteDbContext context) : Repository<Etudia
     public async Task<Etudiant?> FindEtudiantCompletAsync(long idEtudiant)
     {
         ArgumentNullException.ThrowIfNull(Context.Etudiants);
-        return await Context.Etudiants.Include(e => e.Notes).ThenInclude(n=>n.Ue).FirstOrDefaultAsync(e => e.Id == idEtudiant);
+        return await Context.Etudiants
+            .Include(e => e.ParcoursSuivi)
+            .Include(e => e.Notes).ThenInclude(n=>n.Ue).FirstOrDefaultAsync(e => e.Id == idEtudiant);
     }
+
     public async Task<List<Etudiant>> GetAllAsync()
     {
         return await Context.Etudiants.ToListAsync();
