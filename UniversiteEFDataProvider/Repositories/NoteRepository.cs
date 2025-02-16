@@ -46,4 +46,20 @@ public class NoteRepository(UniversiteDbContext context) : Repository<Note>(cont
             .Where(n => n.EtudiantId == idEtudiant)
             .ToListAsync();
     }
+
+    public async Task SaveOrUpdateAsync(Note note)
+    {
+        var existingNote = await (context.Notes ?? throw new InvalidOperationException())
+            .FirstOrDefaultAsync(n => n.EtudiantId == note.EtudiantId && n.UeId == note.UeId);
+
+        if (existingNote != null)
+        {
+            existingNote.Valeur = note.Valeur;
+        }
+        else
+        {
+            await context.Notes.AddAsync(note);
+        }
+        await context.SaveChangesAsync();
+    }
 }

@@ -1,33 +1,44 @@
-﻿using UniversiteDomain.DataAdapters;
+﻿using Microsoft.EntityFrameworkCore;
 using UniversiteDomain.Entities;
+using UniversiteDomain.DataAdapters;
 using UniversiteEFDataProvider.Data;
 
 namespace UniversiteEFDataProvider.Repositories;
 
 public class UeRepository(UniversiteDbContext context) : Repository<Ue>(context), IUeRepository
 {
-    // Associe une UE à un parcours
-    public async Task AssocierUeAuParcoursAsync(long idUe, long idParcours)
+    public async Task<Ue> AssignParcoursAsync(long idUe, long idParcours)
     {
         ArgumentNullException.ThrowIfNull(Context.Ues);
         ArgumentNullException.ThrowIfNull(Context.Parcours);
-        
+
         Ue ue = (await Context.Ues.FindAsync(idUe))!;
         Parcours parcours = (await Context.Parcours.FindAsync(idParcours))!;
-        
-        if (!parcours.UesEnseignees.Contains(ue))
-        {
-            parcours.UesEnseignees.Add(ue);
-            await Context.SaveChangesAsync();
-        }
+
+        if (ue.EnseigneeDans == null)
+            ue.EnseigneeDans = new List<Parcours>();
+
+        ue.EnseigneeDans.Add(parcours);
+        await Context.SaveChangesAsync();
+        return ue;
     }
 
-    // Récupère toutes les UE pour un parcours donné
-    public async Task<List<Ue>> ObtenirUesParParcoursAsync(long idParcours)
+    public async Task<Ue> AssignParcoursAsync(long idUe, long[] idParcours)
     {
-        ArgumentNullException.ThrowIfNull(Context.Parcours);
-
-        Parcours parcours = (await Context.Parcours.FindAsync(idParcours))!;
-        return parcours.UesEnseignees.ToList();
+        foreach (var parcoursId in idParcours)
+        {
+            await AssignParcoursAsync(idUe, parcoursId);
+        }
+        return (await Context.Ues.FindAsync(idUe))!;
     }
+    public async Task<List<Ue>> GetAllAsync()
+    {
+        return await Context.Ues.ToListAsync();
+    }
+
+    public async Task<Ue> GetByIdAsync(long id)
+    {
+        return await Context.Ues.FindAsync(id);
+    }
+    
 }

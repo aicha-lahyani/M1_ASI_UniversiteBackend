@@ -4,7 +4,11 @@ using Microsoft.EntityFrameworkCore;
 
 using UniversiteDomain.DataAdapters.DataAdaptersFactory;
 using UniversiteDomain.JeuxDeDonnees;
+using UniversiteDomain.UseCases.NoteUseCases.Export;
+using UniversiteDomain.UseCases.NoteUseCases.Import;
+using UniversiteDomain.UseCases.NoteUseCases.Validate;
 using UniversiteDomain.UseCases.ParcoursUseCases.Create;
+using UniversiteDomain.UseCases.UeUseCases.Create;
 using UniversiteEFDataProvider.Data;
 using UniversiteEFDataProvider.Entities;
 using UniversiteEFDataProvider.RepositoryFactories;
@@ -34,8 +38,13 @@ builder.Services.AddDbContext<UniversiteDbContext>(options =>
 builder.Services.AddScoped<IRepositoryFactory, RepositoryFactory>();
 //builder.Services.AddScoped<UserManager<UniversiteUser>>();
 //builder.Services.AddScoped<RoleManager<UniversiteRole>>();
-builder.Services.AddScoped<CreateParcoursUseCase>();
+builder.Services.AddScoped<ValidationUseCase>();
+builder.Services.AddScoped<ExportNotesCsvUseCase>();
+builder.Services.AddScoped<ImportNotesCsvUseCase>();
 
+builder.Services.AddScoped<CreateParcoursUseCase>();
+builder.Services.AddScoped<CreateUeUseCase>();  // Enregistrement de CreateUeUseCase
+builder.Services.AddScoped<CreateNoteUseCase>();  // Enregistrement de CreateNoteUseCase
 
 builder.Services.AddAuthorization();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)

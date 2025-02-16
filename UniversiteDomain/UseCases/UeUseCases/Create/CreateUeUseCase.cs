@@ -1,4 +1,6 @@
-﻿using UniversiteDomain.DataAdapters;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using UniversiteDomain.DataAdapters.DataAdaptersFactory;
 using UniversiteDomain.Entities;
 using UniversiteDomain.Exceptions.UeExceptions;
@@ -39,5 +41,8 @@ public class CreateUeUseCase
         if (existe.Any()) 
             throw new DuplicateUeException($"{ue.NumeroUe} - Cette UE existe déjà.");
     }
-
+    public bool IsAuthorized(string role)
+    {
+        return role.Equals(Roles.Responsable) || role.Equals(Roles.Scolarite);
+    }
 }
